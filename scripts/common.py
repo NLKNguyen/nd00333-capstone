@@ -1,5 +1,6 @@
 import typer
 from datetime import datetime
+import re
 
 
 class CommonFormats(object):
@@ -37,27 +38,53 @@ class Format(object):
 
     @staticmethod
     def cacheDataFileName(label, timestamp):
-        return f"{label}.{timestamp}.history.csv"
+        timestamp_str = timestamp.strftime(CommonFormats.TimestampFormat)
+        return f"{label}.{timestamp_str}.history.csv"
 
     @staticmethod
-    def cacheDataFileGlobPattern(symbol, period, ticks):
+    def cacheDataFileGlobPattern(symbol, period, ticks) -> str:
         return f"{Format.cacheLabel(symbol, period, ticks)}.*.*.history.csv"
 
+    # @staticmethod
+    # def cacheDataFileRegexPattern(symbol, period, ticks) -> str:
+    #     return '{label}\\.([^\\.]+\\.[^\\.]+)\\.history\\.csv'.format(
+    #         label=Format.cacheLabel(symbol, period, ticks, sep='\\.'))
+
     @staticmethod
-    def cacheDataFileRegexPattern(symbol, period, ticks):
-        return '{label}\\.([^\\.]+\\.[^\\.]+)\\.history\\.csv'.format(
+    def extractDataFileTimestamp(symbol, period, ticks, file_name) -> datetime:
+        # regex_pattern = Format.cacheDataFileRegexPattern(symbol, period, ticks)
+        regex_pattern = '{label}\\.([^\\.]+\\.[^\\.]+)\\.history\\.csv'.format(
             label=Format.cacheLabel(symbol, period, ticks, sep='\\.'))
+        match = re.match(regex_pattern, file_name)
+        groups = match.groups()
+        if len(groups) == 1:
+            return datetime.strptime(groups[0], CommonFormats.TimestampFormat)
+        return None
 
     @staticmethod
     def cacheModelFileName(label, timestamp, target):
-        return f"{label}.{timestamp}.model.{target}.pkl"
+        timestamp_str = timestamp.strftime(CommonFormats.TimestampFormat)
+        return f"{label}.{timestamp_str}.model.{target}.pkl"
 
     @staticmethod
     def cacheModelFileGlobPattern(symbol, period, ticks, target):
         return f"{Format.cacheLabel(symbol, period, ticks)}.*.*.model.{target}.pkl"
 
+    # @staticmethod
+    # def cacheModelFileRegexPattern(symbol, period, ticks, target):
+    #     return '{label}\\.([^\\.]+\\.[^\\.]+)\\.model\\.{target}\\.pkl'.format(
+    #         label=Format.cacheLabel(symbol, period, ticks, sep='\\.'),
+    #         target=target)
+
     @staticmethod
-    def cacheModelFileRegexPattern(symbol, period, ticks, target):
-        return '{label}\\.([^\\.]+\\.[^\\.]+)\\.model\\.{target}\\.pkl'.format(
-            label=Format.cacheLabel(symbol, period, ticks, sep='\\.'),
-            target=target)
+    def extractModelFileTimestamp(symbol, period, ticks, target, file_name) -> datetime:
+        # regex_pattern = Format.cacheDataFileRegexPattern(symbol, period, ticks)
+        regex_pattern = '{label}\\.([^\\.]+\\.[^\\.]+)\\.model\\.{target}\\.pkl'.format(
+                        label=Format.cacheLabel(
+                            symbol, period, ticks, sep='\\.'),
+                        target=target)
+        match = re.match(regex_pattern, file_name)
+        groups = match.groups()
+        if len(groups) == 1:
+            return datetime.strptime(groups[0], CommonFormats.TimestampFormat)
+        return None

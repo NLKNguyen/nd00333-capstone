@@ -14,9 +14,6 @@ class GetDataOptions(object):
         These can be shared to other programs that want to replicate the CLI option to forward
         to the get_data function call.
     """
-    # SymbolOption = typer.Option("AAPL")
-    # PeriodOption = typer.Option("day")
-    # TicksOption = typer.Option(100)
 
     ApiEndpoint = typer.Option(
         "https://paper-api.alpaca.markets", envvar="ALPACA_API_ENDPOINT")
@@ -24,12 +21,7 @@ class GetDataOptions(object):
         "PK5R9YDUGWGEBR9K0G5W", envvar="ALPACA_API_KEY_ID")
     ApiSecretKey = typer.Option(
         "9wI2LFDsGvfpuSouXY6a05XglcDJcUcZQy2i2zr1", envvar="ALPACA_API_SECRET_KEY")
-
-    AcceptCacheDate = typer.Option(
-        datetime.today().strftime(CommonFormats.DateFormat), formats=[CommonFormats.DateFormat])
-    AcceptCacheTime = typer.Option(
-        "0000", formats=[CommonFormats.TimeFormat])
-    # Verbose = typer.Option(True)
+    
 
 
 # today = datetime.today()
@@ -80,46 +72,28 @@ def get_data(
         # sort by name in reverse which means the file with latest time stamp comes first
         cached_files.sort(reverse=True)
 
-        for file_name in cached_files:
-            # extract the date and time in the file name to compare
-            regex_pattern = Format.cacheDataFileRegexPattern(
-                symbol, period, ticks)
-            match = re.match(regex_pattern, file_name)
-            # print(file_name, regex_pattern)
+        # for file_name in cached_files:
+        if len(cached_files) >= 1:
+            # only need to check the latest file
+            latest_cached_file = cached_files[0]
 
-            groups = match.groups()
-            if len(groups) == 1:
-                cached_timestamp = groups[0]
-                cached_datetime = datetime.strptime(
-                    cached_timestamp, CommonFormats.TimestampFormat)
+            cached_timestamp = Format.extractDataFileTimestamp(
+                symbol, period, ticks, latest_cached_file)
 
-                # cached_date_str = groups[0]
-                # cached_time_str = groups[1]
-                # cached_date = datetime.strptime(
-                #     cached_date_str, CommonFormats.DateFormat).date()  # only use date section
-                # cached_time = datetime.strptime(
-                #     cached_time_str, CommonFormats.TimeFormat).time()  # only use time section
+            if cached_timestamp >= minimum_cache_timestamp:
+                # cached_file = file_name
+                # timestamp_str = minimum_cache_timestamp.strftime(
+                #     CommonFormats.TimestampFormat)
+                # timestamp = Format.cacheTimestamp(
+                #     cached_date_str, cached_time_str)
 
-                # print(file_name, cached_date, cached_time)
-                # if cached_date > accept_cache_date or (cached_date == accept_cache_date and cached_time >= accept_cache_time):
-                if cached_datetime >= minimum_cache_timestamp:
-                    cached_file = file_name
-                    timestamp = minimum_cache_timestamp.strftime(
-                        CommonFormats.TimestampFormat)
-                    # timestamp = Format.cacheTimestamp(
-                    #     cached_date_str, cached_time_str)
+                if verbose:
+                    print('> load cached data file', latest_cached_file)
 
-                    if verbose:
-                        print('> load cached data file', cached_file)
+                ohlcv = pd.read_csv(latest_cached_file)
+                ohlcv.index = pd.DatetimeIndex(ohlcv['time'])
 
-                    ohlcv = pd.read_csv(cached_file)
-                    ohlcv.index = pd.DatetimeIndex(ohlcv['time'])
-
-                    result = (ohlcv, timestamp)
-                    break
-                elif latest_cached_file is None:
-                    # track this to check again after downloading in case there is no new data since this cache
-                    latest_cached_file = file_name
+                result = (ohlcv, minimum_cache_timestamp)
 
     if result is None:  # cache is not used; need to download
         if verbose:
@@ -132,8 +106,8 @@ def get_data(
         # libraries used later either expect 'time' column or can't handle timezome
         ohlcv.insert(0, 'time', ohlcv.index.tz_convert(None).to_pydatetime())
 
-        last_time = ohlcv['time'].iloc[-1]
-        timestamp = last_time.strftime(CommonFormats.TimestampFormat)
+        timestamp = ohlcv['time'].iloc[-1]        
+        # timestamp_str = last_time.strftime(CommonFormats.TimestampFormat)
 
         if use_cache:
             cached_label = Format.cacheLabel(symbol, period, ticks)
@@ -144,7 +118,7 @@ def get_data(
             # if the supposed file name is identical to the latest cached file, it means no new data since then.
             # so, better use a new file name with the provided accept_cache_date and accept_cache_time because
             # that will prevent future requests that don't provide any new data. This usually happens in weekends.
-            if cached_file == latest_cached_file:                
+            if cached_file == latest_cached_file:
                 # only apply to accept_cache_date/time that is in the past. We can't assume no changes in future.
                 # if accept_cache_date < now.date() or (accept_cache_date == now.date() and accept_cache_time < now.time()):
                 if minimum_cache_timestamp <= datetime.now():
@@ -153,12 +127,11 @@ def get_data(
                     # new_cache_time = accept_cache_time.strftime(
                     #     CommonFormats.TimeFormat)
 
-                    timestamp = minimum_cache_timestamp.strftime(
-                        CommonFormats.TimestampFormat)
+                    # timestamp_str = minimum_cache_timestamp.strftime(
+                    #     CommonFormats.TimestampFormat)
                     # timestamp = Format.cacheTimestamp(
                     #     new_cache_date, new_cache_time)
-                    cached_file = Format.cacheDataFileName(
-                        cached_label, timestamp)
+                    cached_file = Format.cacheDataFileName(cached_label, timestamp)
 
             if verbose:
                 print('> save cached data file', cached_file)
@@ -179,7 +152,7 @@ def get_data(
         # last_rows.index.name = '...'
         # print(last_rows.rename(columns={col: "" for col in last_rows}))
         print()
-        print("> timestamp:", result[1])
+        print("> timestamp:", result[-1].strftime(CommonFormats.TimestampFormat))
         print('*' * 80)
         print()
         print()
@@ -207,7 +180,7 @@ def main(
 ):
     get_data(symbol, period, ticks,
              use_cache, refresh_cache, minimum_cache_timestamp,
-            #  accept_cache_date, accept_cache_time,
+             #  accept_cache_date, accept_cache_time,
              api_endpoint, api_key_id, api_secret_key,
              verbose)
 

@@ -6,7 +6,7 @@ from get_data import get_data, GetDataOptions  # , date_format, time_format
 from datetime import datetime
 import glob
 import re
-
+import joblib  # dump objects to files / load objects from files
 
 class TrainOptions(object):
     TargetOption = typer.Option("close")
@@ -22,7 +22,7 @@ class TrainOptions(object):
 
 
 def train(df, target,
-          symbol, period, ticks,          
+          symbol, period, ticks,
           use_cache, refresh_cache, timestamp,
           verbose):
     # make a time series from a data column to forecast, along with a required 'time' column
@@ -33,6 +33,9 @@ def train(df, target,
         print('*' * 80)
 
     result = None
+    latest_cached_file = None
+
+    # print(timestamp)
 
     if use_cache and not refresh_cache:
         result = (1, 2, 3)
@@ -42,29 +45,19 @@ def train(df, target,
 
         # sort by name in reverse which means the file with latest time stamp comes first
         cached_files.sort(reverse=True)
-        print(cached_files)
+        # print(cached_files)
 
-        for file_name in cached_files:
-            # extract the date and time in the file name to compare
-            regex_pattern = Format.cacheModelFileRegexPattern(
-                symbol, period, ticks, target)
-            match = re.match(regex_pattern, file_name)
-            print(file_name, regex_pattern)
+        if len(cached_files) >= 1:
+            # only need to check the latest file
+            latest_cached_file = cached_files[0]
 
-            groups = match.groups()
-            if len(groups) == 1:
-                cached_timestamp = groups[0]
-                cached_datetime = datetime.strptime(
-                    cached_timestamp, CommonFormats.TimestampFormat)
-                print(cached_timestamp, cached_datetime)
-            #     cached_date_str = groups[0]
-            #     cached_time_str = groups[1]
-            #     cached_date = datetime.strptime(
-            #         cached_date_str, CommonFormats.DateFormat).date()  # only use date section
-            #     cached_time = datetime.strptime(
-            #         cached_time_str, CommonFormats.TimeFormat).time()  # only use time section
+            cached_timestamp = Format.extractModelFileTimestamp(
+                symbol, period, ticks, target, latest_cached_file)
 
-        pass
+            if cached_timestamp >= timestamp:
+                if verbose:
+                    print('> load cached model file', latest_cached_file)
+                result = joblib.load(latest_cached_file)
 
     if result is None:
         if verbose:
@@ -72,13 +65,14 @@ def train(df, target,
 
         import numpy as np
         import pandas as pd  # data frames
-        import joblib  # to dump objects to files
+        
 
         from kats.consts import TimeSeriesData
         from kats.models.prophet import ProphetModel, ProphetParams
 
-        print(
-            f"> create time series data based on 'time' and '{target}' columns")
+        if verbose:
+            print(
+                f"> create time series data based on 'time' and '{target}' columns")
         ts = TimeSeriesData(df[['time', target]])
 
         # create a model param instance
@@ -107,8 +101,9 @@ def train(df, target,
             joblib.dump(result, cached_file)
 
     if verbose:
+        # print(result)
         # print("> cached file:", result[1][0])
-        print("> timestamp:", result[2])
+        print("> timestamp:", result[-1].strftime(CommonFormats.TimestampFormat))
         # print("> preview data")
         # print(result[0].head())
         print('*' * 80)

@@ -1,148 +1,121 @@
-import typer  # CLI argument handling
 from typing import Optional
-from common import CommonOptions, CommonFormats, Format
-from get_data import get_data, GetDataOptions  # , date_format, time_format
+import typer  # CLI argument handling
+import joblib
+import pandas as pd
+import numpy as np
+import os
 
-from datetime import datetime
-import glob
-import re
-import joblib  # dump objects to files / load objects from files
+from kats.consts import TimeSeriesData
+from kats.models.prophet import ProphetModel, ProphetParams
+from kats.utils.backtesters import BackTesterRollingWindow
 
-class TrainOptions(object):
-    TargetOption = typer.Option("close")
-
-
-"""
- if call from CLI, train model to save to pickle file
- if cache exist, e.g. AAPL.day.100.2021-08-27.0400.model.pkl, load and return
- if not, train and save
-
- if use train function only, if df is provided then use it, otherwise, call get data
-"""
+from azureml.core.workspace import Workspace
+from azureml.core import Run, Dataset
 
 
-def train(df, target,
-          symbol, period, ticks,
-          use_cache, refresh_cache, timestamp,
-          verbose):
-    # make a time series from a data column to forecast, along with a required 'time' column
-    if verbose:
-        print('*' * 80)
-        print(
-            f" Train forecasting model on '{target}' column of the input data")
-        print('*' * 80)
+run = Run.get_context()
+ws = run.experiment.workspace
+dataset_name = 'ETHBTC'
+dataset = Dataset.get_by_name(workspace=ws, name=dataset_name)
 
-    result = None
-    latest_cached_file = None
+df = dataset.to_pandas_dataframe()
 
-    # print(timestamp)
+# test local file
+# file = 'ETHBTC.daily.10000.2021-09-08.0000.history.csv'
+# df = pd.read_csv(file)
 
-    if use_cache and not refresh_cache:
-        result = (1, 2, 3)
-        glob_pattern = Format.cacheModelFileGlobPattern(
-            symbol, period, ticks, target)
-        cached_files = glob.glob(glob_pattern, recursive=False)
 
-        # sort by name in reverse which means the file with latest time stamp comes first
-        cached_files.sort(reverse=True)
-        # print(cached_files)
+def get_data(df):
+    # only do univariate forecasting on closing price
+    close_df = df[['time', 'close']]
+    # close_df.index = pd.DatetimeIndex(close_df['time'])
 
-        if len(cached_files) >= 1:
-            # only need to check the latest file
-            latest_cached_file = cached_files[0]
+    train_data = close_df.iloc[:-50]
+    test_data = close_df.iloc[-50:]
+    
+    return (train_data, test_data)
 
-            cached_timestamp = Format.extractModelFileTimestamp(
-                symbol, period, ticks, target, latest_cached_file)
 
-            if cached_timestamp >= timestamp:
-                if verbose:
-                    print('> load cached model file', latest_cached_file)
-                result = joblib.load(latest_cached_file)
-
-    if result is None:
-        if verbose:
-            print('> prepare environment...')
-
-        import numpy as np
-        import pandas as pd  # data frames
-        
-
-        from kats.consts import TimeSeriesData
-        from kats.models.prophet import ProphetModel, ProphetParams
-
-        if verbose:
-            print(
-                f"> create time series data based on 'time' and '{target}' columns")
-        ts = TimeSeriesData(df[['time', target]])
-
-        # create a model param instance
-        # additive mode gives worse results
-        params = ProphetParams(seasonality_mode='multiplicative')
-
-        if verbose:
-            print('> begin training...')
-        # create a prophet model instance
-        model = ProphetModel(ts, params)
-        if verbose:
-            print('> training is complete')
-
-        metrics = dict()
-
-        result = (model, metrics, timestamp)
-
-        if use_cache:
-            cached_label = Format.cacheLabel(symbol, period, ticks)
-            cached_file = Format.cacheModelFileName(
-                cached_label, timestamp, target)
-            # cached_file = f"{Format.cacheLabel(symbol, period, ticks)}.{timestamp}.pkl"
-            if verbose:
-                print(f"> save cached model file", cached_file)
-
-            joblib.dump(result, cached_file)
-
-    if verbose:
-        # print(result)
-        # print("> cached file:", result[1][0])
-        print("> timestamp:", result[-1].strftime(CommonFormats.TimestampFormat))
-        # print("> preview data")
-        # print(result[0].head())
-        print('*' * 80)
-        print()
-        print()
-
-    return result
+train_data, test_data = get_data(df)
 
 
 def main(
-    target: Optional[str] = TrainOptions.TargetOption,
-
-    symbol: Optional[str] = CommonOptions.SymbolOption,
-    period: Optional[str] = CommonOptions.PeriodOption,
-    ticks: Optional[int] = CommonOptions.TicksOption,
-
-    use_cache: Optional[bool] = CommonOptions.UseCache,
-    refresh_cache: Optional[bool] = CommonOptions.RefreshCache,
-    minimum_cache_timestamp: Optional[datetime] = CommonOptions.MinimumCacheTimestamp,
-
-    api_endpoint: Optional[str] = GetDataOptions.ApiEndpoint,
-    api_key_id: Optional[str] = GetDataOptions.ApiKeyId,
-    api_secret_key: Optional[str] = GetDataOptions.ApiSecretKey,
-
-    # accept_cache_date: Optional[datetime] = GetDataOptions.AcceptCacheDate,
-    # accept_cache_time: Optional[datetime] = GetDataOptions.AcceptCacheTime,
-
-    verbose: Optional[bool] = CommonOptions.Verbose
+    changepoint_prior_scale: Optional[float] = None,
+    seasonality_prior_scale: Optional[float] = None
 ):
-    (df, timestamp) = get_data(symbol, period, ticks,
-                               use_cache, refresh_cache, minimum_cache_timestamp,
-                               #    accept_cache_date, accept_cache_time,
-                               api_endpoint, api_key_id, api_secret_key,
-                               verbose)
 
-    return train(df, target,
-                 symbol, period, ticks,
-                 use_cache, refresh_cache, timestamp,
-                 verbose)
+    print('*' * 80)
+    print(f"(train.py) Train forecasting model")
+    print('*' * 80)
+
+    print(f"> create time series data from data frame")
+
+    ts = TimeSeriesData(train_data)
+
+    hyperparameters = dict()
+    hyperparameters['seasonality_mode'] = 'multiplicative'
+
+    if changepoint_prior_scale is not None:
+        hyperparameters['changepoint_prior_scale'] = changepoint_prior_scale
+
+    if seasonality_prior_scale is not None:
+        hyperparameters['seasonality_prior_scale'] = seasonality_prior_scale
+
+    params = ProphetParams(**hyperparameters)
+
+    print('> begin training...')
+
+    # create a prophet model instance
+    model = ProphetModel(ts, params)
+
+    # fit the model with training data
+    model.fit()
+
+    print('> training is complete')
+
+    os.makedirs('outputs', exist_ok=True)
+    model_file = './outputs/hyperdrive_model.pkl'
+
+    print(f"> save cached model file {model_file}")
+
+    joblib.dump(model, model_file)
+
+    print('> prepare for validation')
+
+    # map some allowed error method to the equivalence names in Azure ML
+    error_method_labels = dict(
+        mape='mean_absolute_percentage_error',
+        mae='mean_absolute_error',
+        rmse='root_mean_squared_error'       
+    )
+
+    backtester = BackTesterRollingWindow(
+        error_methods=list(error_method_labels.keys()),
+        data=ts,
+        params=params,
+        train_percentage=75,
+        test_percentage=25,
+        sliding_steps=3,
+        model_class=ProphetModel)
+
+    print('> validate...')
+
+    backtester.run_backtest()
+
+    print("> metrics:")
+    for method, value in backtester.errors.items():
+        method_label = error_method_labels[method]
+        print(method_label, '=', value)
+        run.log(method_label, float(value))    
+
+    # calculate normalized_root_mean_squared_error based on the RMSE result
+    # nrmse_label = 'normalized_root_mean_squared_error'
+    # nrmse_value = backtester.errors['rmse'] / (train_data['close'].max() - train_data['close'].min())
+    # print(nrmse_label, '=', nrmse_value)
+    # run.log(nrmse_label, float(nrmse_value))
+
+    print()
+    print('*' * 80)
 
 
 if __name__ == "__main__":

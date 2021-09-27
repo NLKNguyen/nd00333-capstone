@@ -1,0 +1,103 @@
+{
+    "schema_name": "pipeline_graph",
+    "schema_version": "1.0.0",
+    "data": {
+        "module_nodes": {
+            "b4e034b5": {
+                "node_id": "b4e034b5",
+                "name": "RobustScaler",
+                "status": "model"
+            },
+            "c9e35456": {
+                "node_id": "c9e35456",
+                "name": "DecisionTreeRegressor",
+                "status": "model"
+            },
+            "1911acf5": {
+                "node_id": "1911acf5",
+                "name": "Numeric",
+                "status": "dataType"
+            },
+            "87284392": {
+                "node_id": "87284392",
+                "name": "ImputationMarker",
+                "status": "operation"
+            },
+            "4139e6c7": {
+                "node_id": "4139e6c7",
+                "name": "DateTime",
+                "status": "dataType"
+            },
+            "e9d6df5e": {
+                "node_id": "e9d6df5e",
+                "name": "DateTimeTransformer",
+                "status": "operation"
+            }
+        },
+        "edges": [
+            {
+                "source_node_id": "b4e034b5",
+                "source_node_name": "",
+                "source_name": "",
+                "target_name": "",
+                "dst_node_id": "c9e35456",
+                "dst_node_name": ""
+            },
+            {
+                "source_node_id": "244da942",
+                "source_node_name": "data_source",
+                "source_name": "",
+                "target_name": "1 col",
+                "dst_node_id": "1911acf5",
+                "dst_node_name": "Numeric"
+            },
+            {
+                "source_node_id": "1911acf5",
+                "source_node_name": "",
+                "source_name": "",
+                "target_name": "",
+                "dst_node_id": "87284392",
+                "dst_node_name": ""
+            },
+            {
+                "source_node_id": "87284392",
+                "source_node_name": "",
+                "source_name": "",
+                "target_name": "1 col",
+                "dst_node_id": "b4e034b5",
+                "dst_node_name": ""
+            },
+            {
+                "source_node_id": "244da942",
+                "source_node_name": "data_source",
+                "source_name": "",
+                "target_name": "1 col",
+                "dst_node_id": "4139e6c7",
+                "dst_node_name": "DateTime"
+            },
+            {
+                "source_node_id": "4139e6c7",
+                "source_node_name": "",
+                "source_name": "",
+                "target_name": "",
+                "dst_node_id": "e9d6df5e",
+                "dst_node_name": ""
+            },
+            {
+                "source_node_id": "e9d6df5e",
+                "source_node_name": "",
+                "source_name": "",
+                "target_name": "8 col",
+                "dst_node_id": "b4e034b5",
+                "dst_node_name": ""
+            }
+        ],
+        "child_runs": [],
+        "datasource_nodes": {
+            "244da942": {
+                "node_id": "244da942",
+                "name": "data_source - 2 col"
+            }
+        }
+    }
+}

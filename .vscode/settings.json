@@ -1,5 +1,6 @@
-{
-    // "python.condaPath": "C:\\Users\\NLKNg\\Apps\\miniconda3\\Scripts\\conda.exe",
-    "terminal.integrated.shell.windows": "C:\\Windows\\System32\\cmd.exe",
-    "python.terminal.activateEnvironment": true
+{    
+    "pasteImage.path": "${projectRoot}/img",
+    "pasteImage.basePath": "${projectRoot}",
+    "pasteImage.forceUnixStyleSeparator": true,
+    "pasteImage.prefix": ""
 }

@@ -187,6 +187,14 @@ Full notebook: [automl.ipynb](automl.ipynb)
 
 We use the same train data that has only time and close price column to build the forecasting model. Here we configure a forecasting task for Azure AutoML and submit the experiment.
 
+In the ForecastingParameters, we set the time column name the same as the `time` column in our train data. Because the training data is in daily period, we set the frequency as daily, `freq='D'`. Finally, we set the forecast horizon as `20` days in the future that we plan to train the model for. In practice, we don't need nor want a very long forecast into the future price because it will not be accurate in a highly volatile financial system such as cryptos. As soon as we have new price data, we should train again.
+
+The supplied train data only contains `time` column and a target column `close` price in order to only do univariate forecasting.
+
+Regarding the evaluation metric, we pick the default for AutoML forecasting task which is `normalized_root_mean_squared_error`, but afterward we can extract `root_mean_squared_error` that is part of the available metrics of the trained model because we need to compare with the HyperDrive model on the same metric.
+
+The rest of the configurations for the AutoML is not domain specific and can be changed as will. That only gives room for the experiment.
+
 #### Configure and submit an AutoML experiment
 ![](img/2021-09-26-15-27-51.png)
 
@@ -196,10 +204,62 @@ We use the same train data that has only time and close price column to build th
 
 #### Best model
 
-![](img/2021-09-23-21-30-02.png)
+The best model is trained with a Decision Tree regression algorithm and having the data standardized by a Robust Scaler, which is based on percentiles and are therefore not influenced by a few number of very large marginal outliers. 
 
+![](img/2021-09-27-20-24-17.png)
+
+<!-- ![](img/2021-09-23-21-30-02.png) -->
+
+The hyperparameters are as follows:
+
+**Robust Scaler** data transformation
+
+```json
+{
+    "class_name": "RobustScaler",
+    "module": "sklearn.preprocessing",
+    "param_args": [],
+    "param_kwargs": {
+        "quantile_range": [
+            10,
+            90
+        ],
+        "with_centering": false,
+        "with_scaling": false
+    },
+    "prepared_kwargs": {},
+    "spec_class": "preproc"
+}
+```
+
+**Decision Tree** training algorithm
+
+```json
+{
+    "class_name": "DecisionTreeRegressor",
+    "module": "sklearn.tree",
+    "param_args": [],
+    "param_kwargs": {
+        "criterion": "mse",
+        "max_features": null,
+        "min_samples_leaf": 0.006781961770526707,
+        "min_samples_split": 0.0008991789964660114,
+        "splitter": "best"
+    },
+    "prepared_kwargs": {},
+    "spec_class": "sklearn"
+}
+```
+
+<!-- And the configuration settings of the experiment
+
+![](img/2021-09-27-20-28-25.png) -->
+
+#### All available performance metrics
 
 ![](img/2021-09-23-21-30-12.png)
+
+These information can also be extracted programmatically.
 
 ![](img/2021-09-23-21-22-19.png)
 

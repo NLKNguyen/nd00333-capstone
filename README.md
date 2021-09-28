@@ -303,6 +303,36 @@ Use the same environment as the model and entry script as the downloaded scoring
 ![](img/2021-09-25-14-25-01.png)
 
 # 7. Test Model Endpoint
+
+Since this is a univariate forecasting on the `close` price, the only input needed is the `time` value, and the time should be in the future of the train dataset (2021-09-08) and up to 20 days in the horizon. In other words, any day from 2021-09-09 to 2021-09-28 will be valid. Usually, the nearer in the future, the higher the confidence.
+
+Example data format of the JSON request body:
+
+```json
+"data":
+[
+    {
+        "time": "2021-09-10T00:00:00.000Z",
+    }
+],
+```
+
+Example response, in which the forecasted close price is in the value of `forecast` property:
+
+```json
+{
+    "forecast": [
+        0.0648978
+    ],
+    "index": [
+        {
+            "time": 1631232000000,
+            "_automl_dummy_grain_col": "_automl_dummy_grain_col"
+        }
+    ]
+}
+```
+
 #### Test live web service using UI
 ![](img/2021-09-25-14-38-38.png)
 

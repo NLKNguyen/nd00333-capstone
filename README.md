@@ -5,8 +5,23 @@ This is a capstone project for Udacity Nanodegree: Azure Machine Learning Engine
 
 We will examine 2 approaches: using HyperDrive to tune a manually prepared model training, and using AutoML to automate the entire process. Then, we will pick the best model and deploy as a web service to do real time forecasting.
 
-Workflow
-========
+**Table of Contents**
+
+- [Workflow](#workflow)
+    - [0. Project set up and installation](#0-project-set-up-and-installation)
+    - [1. Choose a dataset](#1-choose-a-dataset)
+    - [2. Import dataset into the workspace](#2-import-dataset-into-the-workspace)
+    - [3. Train model using HyperDrive](#3-train-model-using-hyperdrive)
+    - [4. Train model using AutoML](#4-train-model-using-automl)
+    - [5. Compare model performance](#5-compare-model-performance)
+    - [6. Deploy best model](#6-deploy-best-model)
+    - [7. Test model endpoint](#7-test-model-endpoint)
+- [Clean Up Resources](#clean-up-resources)
+- [Screen Recording](#screen-recording)
+- [Future Improvements](#future-improvements)
+
+
+# Workflow
 
 Here is the workflow overview of the project.
 
@@ -14,14 +29,14 @@ Here is the workflow overview of the project.
 
 Section outline:
 
-0. Project set up and installation
-1. Choose a dataset
-2. Import dataset to the workspace
-3. Train model using HyperDrive
-4. Train model using AutoML
-5. Compare model performance
-6. Deploy best model
-7. Test model endpoint
+- [0. Project set up and installation](#0-project-set-up-and-installation)
+- [1. Choose a dataset](#1-choose-a-dataset)
+- [2. Import dataset into the workspace](#2-import-dataset-into-the-workspace)
+- [3. Train model using HyperDrive](#3-train-model-using-hyperdrive)
+- [4. Train model using AutoML](#4-train-model-using-automl)
+- [5. Compare model performance](#5-compare-model-performance)
+- [6. Deploy best model](#6-deploy-best-model)
+- [7. Test model endpoint](#7-test-model-endpoint)
 
 ## 0. Project set up and installation
 
@@ -357,13 +372,11 @@ No more cluster is available after the deletion.
 
 ![](img/2021-09-27-12-39-22.png)
 
-Screen Recording
-================
+# Screen Recording
 
 [Screencast video](https://youtu.be/1sywHzjvwxc) demonstrating the live model deployed as a web service to handle forecast request.
 
-Future Improvements
-===================
+# Future Improvements
 
 + Apply multivariate forecasting using multiple available features such open, high, low, and volume instead of just only close price. This will surely improve the prediction quality. Furthermore, we can combine other time series data such as other cryptos, stock index data, and inflation data, as they might affect the price movement of the target crypto. An algorithm I have in mind is Vector Autoregression if I write a local training script, and for AutoML I simply not exclude the other features because the AutoML forecasting task will apply multivariate by default. 
 
